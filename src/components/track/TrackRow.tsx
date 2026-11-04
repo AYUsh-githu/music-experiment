@@ -30,6 +30,7 @@ import { useRef } from "react";
 import type { Track } from "@/lib/types";
 import { usePlayer } from "@/lib/client/PlayerContext";
 import { useCanHover } from "@/hooks/useCanHover";
+import { useRipple } from "@/hooks/useRipple";
 import Artwork from "@/components/track/Artwork";
 import FavoriteButton from "@/components/track/FavoriteButton";
 import TrackContextMenu from "@/components/track/TrackContextMenu";
@@ -92,6 +93,13 @@ export default function TrackRow({ track, onPlay, index, meta }: TrackRowProps) 
   // element itself, so a press anywhere on the row opens the menu.
   const surfaceRef = useRef<HTMLDivElement | null>(null);
 
+  // Press acknowledgement (§ Phase 5): a light wash spreading from the touch
+  // point. Deliberately on the ROW, not on the play button — the row is the far
+  // larger target and is what a tap actually lands on for most of its width.
+  // The hook is a no-op under reduced motion, and it only ever appends a
+  // decorative span, so the row's own handlers and focus behaviour are untouched.
+  const ripple = useRipple();
+
   function triggerPlay() {
     // Tapping the current (playing/paused) row toggles playback rather than
     // re-seeding the queue — the least surprising behavior for "the song I'm on".
@@ -103,6 +111,7 @@ export default function TrackRow({ track, onPlay, index, meta }: TrackRowProps) 
     <div
       ref={surfaceRef}
       onClick={triggerPlay}
+      {...ripple}
       // Keyboard twin of the click path, for a surface that is itself focused
       // (an assistive tool or a future tabIndex). WHY the target check: the
       // heart and the play button are descendants, and their Enter/Space would
@@ -116,7 +125,7 @@ export default function TrackRow({ track, onPlay, index, meta }: TrackRowProps) 
       }}
       aria-current={isCurrent ? "true" : undefined}
       className={cn(
-        "group flex min-h-12 cursor-pointer items-center gap-3 rounded-lg px-2 py-1.5",
+        "group relative flex min-h-12 cursor-pointer items-center gap-3 overflow-hidden rounded-lg px-2 py-1.5",
         "transition-[background-color,transform] duration-[var(--dur-micro)]",
         // WS2 plan 1.5: a white wash instead of the flat bg-surface-2 so the
         // hover state reads on ANY artwork-neutral surface, not only the one

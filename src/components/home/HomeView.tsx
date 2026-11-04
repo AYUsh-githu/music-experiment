@@ -28,6 +28,7 @@ import TrackCardRow, {
   type TrackWithMeta,
 } from "@/components/home/TrackCardRow";
 import JumpBackIn from "@/components/home/JumpBackIn";
+import DiscoveryWheel from "@/components/home/DiscoveryWheel";
 
 /** Lifecycle of the /api/trending fetch; mirrors the search page's Status union. */
 type TrendingState =
@@ -319,6 +320,15 @@ export default function HomeView() {
         <JumpBackIn
           mostRecent={mostRecent}
           fallbackTrack={heroFallback}
+          onPlay={handleSinglePlay}
+        />
+
+        {/* Discovery wheel (§ Phase 5). Pool = recent history + trending, both
+            already in memory — the wheel adds no fetch. Deduplication happens
+            inside the component, and it plays through the same single-track
+            bridge path as the history rows, so it needs no new plumbing. */}
+        <DiscoveryWheel
+          tracks={[...history.map((h) => h.track), ...trending]}
           onPlay={handleSinglePlay}
         />
       </div>

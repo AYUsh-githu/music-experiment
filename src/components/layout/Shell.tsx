@@ -43,6 +43,7 @@ import BackToTop from "@/components/ui/BackToTop";
 import { Home, Search as SearchIcon, Library, Settings } from "@/components/ui/icons";
 import Topbar from "./Topbar";
 import RouteTitle from "./RouteTitle";
+import WordmarkEasterEgg from "./WordmarkEasterEgg";
 
 // Icons are components now, not emoji strings — so NAV stores the component and
 // the render site mounts it. Type kept loose (a ComponentType union would work
@@ -139,9 +140,11 @@ export default function Shell({ children }: { children: React.ReactNode }) {
               mark. The wordmark is the accessible name; the mark is aria-hidden
               decoration that animates (.eq-anim) only while playing — the global
               prefers-reduced-motion guard in globals.css kills the keyframes. */}
-          <span className="text-gradient-accent text-lg font-bold tracking-tight">
-            Sonic
-          </span>
+          <WordmarkEasterEgg>
+            <span className="text-gradient-accent text-lg font-bold tracking-tight">
+              Sonic
+            </span>
+          </WordmarkEasterEgg>
           <BrandMark playing={playing} />
         </div>
         <nav className="flex flex-col gap-1 px-3" aria-label="Primary navigation">

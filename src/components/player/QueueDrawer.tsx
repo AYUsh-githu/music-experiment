@@ -62,6 +62,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { usePlayer } from "@/lib/client/PlayerContext";
 import { useFocusTrap } from "@/lib/client/useFocusTrap";
 import EqualizerBars from "@/components/ui/EqualizerBars";
+import SwipeableRow from "@/components/player/SwipeableRow";
 import { useScrollLock } from "./useScrollLock";
 import { DUR, EASE, SPRING } from "@/lib/client/motion";
 import { useArtworkThemeColor } from "@/lib/client/ArtworkTheme";
@@ -204,23 +205,33 @@ export default function QueueDrawer({ open, onClose }: QueueDrawerProps) {
               ) : (
                 <ul className="flex flex-col gap-1">
                   {queue.map((track, index) => (
-                    <QueueRow
+                    // SwipeableRow wraps (does not replace) the <li>: a drag
+                    // surface needs its own element to own the gesture, and
+                    // wrapping the list item keeps the <ul>/<li> semantics of
+                    // the queue intact. Motion is disabled inside the wrapper
+                    // for reduced-motion users, in which case it renders the
+                    // row directly with no extra DOM.
+                    <SwipeableRow
                       key={track.id + ":" + index}
-                      index={index}
-                      track={track}
-                      isCurrent={index === currentIndex}
-                      isPlaying={isCurrentPlaying(index)}
-                      queueLength={queue.length}
-                      onMoveUp={() => moveInQueue(index, index - 1)}
-                      onMoveDown={() => moveInQueue(index, index + 1)}
                       onRemove={() => removeFromQueue(index)}
-                      // "Play next" is the additive playNext action: it inserts a
-                      // COPY of this track immediately after the current one, so the
-                      // row stays where it is (it is a "promote", not a move).
-                      onPlayNext={() => playNext(track)}
-                      onTogglePlay={togglePlay}
-                      onPlay={(i) => playQueue(queue, i)}
-                    />
+                    >
+                      <QueueRow
+                        index={index}
+                        track={track}
+                        isCurrent={index === currentIndex}
+                        isPlaying={isCurrentPlaying(index)}
+                        queueLength={queue.length}
+                        onMoveUp={() => moveInQueue(index, index - 1)}
+                        onMoveDown={() => moveInQueue(index, index + 1)}
+                        onRemove={() => removeFromQueue(index)}
+                        // "Play next" is the additive playNext action: it inserts a
+                        // COPY of this track immediately after the current one, so the
+                        // row stays where it is (it is a "promote", not a move).
+                        onPlayNext={() => playNext(track)}
+                        onTogglePlay={togglePlay}
+                        onPlay={(i) => playQueue(queue, i)}
+                      />
+                    </SwipeableRow>
                   ))}
                 </ul>
               )}

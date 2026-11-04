@@ -57,6 +57,7 @@
 import { useRef, useState } from "react";
 import { DUR } from "@/lib/client/motion";
 import { useArtworkThemeColor } from "@/lib/client/ArtworkTheme";
+import { usePrefersReducedMotion } from "@/hooks/usePrefersReducedMotion";
 import { OWNED_KEYS_ATTR } from "@/lib/client/useGlobalKeyboardShortcuts";
 import { cn } from "@/components/track/cn";
 
@@ -117,6 +118,12 @@ export default function ProgressBar({
   const [pressed, setPressed] = useState(false);
   const [hovering, setHovering] = useState(false);
   const [focused, setFocused] = useState(false);
+  // Bumped when a seek is attempted on a track with no known duration, which
+  // re-keys the slider and replays the shake keyframe exactly once. Set only
+  // from the event handler (never an effect), and only when motion is allowed —
+  // for reduced-motion users the affordance is the aria-disabled state instead.
+  const [shakeKey, setShakeKey] = useState(0);
+  const reducedMotion = usePrefersReducedMotion();
   // Focus-VISIBLE (keyboard only) so a pointer click never leaves a focus ring.
   // :focus-visible alone does not win against the global `outline-none` on the
   // slider element, so the state is tracked explicitly in React.
@@ -140,7 +147,16 @@ export default function ProgressBar({
   }
 
   function onPointerDown(e: React.PointerEvent<HTMLDivElement>) {
-    if (max <= 0) return;
+    if (max <= 0) {
+      // Rejected press (§ Phase 5): the track's duration is unknown, so there
+      // is nothing to seek to. Silence here reads as a broken control, so the
+      // bar gives a short shake — a gesture that says "no" without a dialog.
+      // `aria-disabled` already announces the state to assistive tech, so this
+      // is purely a sighted-affordance; it is skipped under reduced motion
+      // rather than being collapsed to a 0ms flash.
+      if (!reducedMotion) setShakeKey((k) => k + 1);
+      return;
+    }
     // Freeze the readout at the tap position and enlarge the thumb + show the
     // bubble. We don't seek yet — the commit happens on pointerup so a single
     // deliberate drag seeks exactly once.
@@ -372,14 +388,29 @@ export default function ProgressBar({
         {!compact && (
           <div
             aria-hidden
-            className="pointer-events-none absolute top-1/2 h-3 w-3 rounded-full"
+            key={shakeKey}
+            className={cn(
+              "pointer-events-none absolute top-1/2 h-3 w-3 rounded-full",
+              shakeKey > 0 && "sonic-shake"
+            )}
             style={{
               left: `${fillRatio * 100}%`,
               background: artworkColor ?? "var(--accent)",
               transform: `translate(-50%, -50%) scale(${thumbBig ? 1.25 : 1})`,
               transition: `transform ${DUR.instant * 1000}ms cubic-bezier(0.22, 1, 0.36, 1)`,
+              // Progress-edge halo boost: 0 for most of the track, ramping to 1
+              // over the last ~8%. The outer .sonic-thumb-halo layer reads this
+              // var to widen and brighten, so the thumb visibly "charges" as
+              // the track nears its end — no animated box-shadow, just two
+              // compositor properties on a pre-rendered gradient.
+              ["--halo-boost" as string]: String(
+                fillRatio > 0.92 ? 1 : Math.max(0, (fillRatio - 0.84) / 0.08)
+              ),
+              ["--halo-color" as string]: artworkColor ?? "var(--accent)",
             }}
-          />
+          >
+            <span className="sonic-thumb-halo" />
+          </div>
         )}
       </div>
 

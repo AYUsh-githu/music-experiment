@@ -30,6 +30,7 @@ import { useRef } from "react";
 import type { Track } from "@/lib/types";
 import { usePlayer } from "@/lib/client/PlayerContext";
 import { useCanHover } from "@/hooks/useCanHover";
+import { useRipple } from "@/hooks/useRipple";
 import Artwork from "@/components/track/Artwork";
 import TrackContextMenu from "@/components/track/TrackContextMenu";
 import EqualizerBars from "@/components/ui/EqualizerBars";
@@ -62,6 +63,10 @@ export default function TrackCard({ track, onPlay, featured = false, meta }: Tra
   const label = meta ?? (track as TrackWithMeta).meta ?? null;
   // Long-press / right-click surface for the track menu (F8): the whole card.
   const surfaceRef = useRef<HTMLDivElement | null>(null);
+  // Press wash on the artwork tile (§ Phase 5). Only the tile ripples: it is
+  // the surface with a defined visual boundary, whereas a ripple across the
+  // title block would bleed under the text with nothing to clip it.
+  const ripple = useRipple();
 
   function triggerPlay() {
     // Current track: toggle play/pause; anything else starts this track.
@@ -131,6 +136,7 @@ export default function TrackCard({ track, onPlay, featured = false, meta }: Tra
       <button
         type="button"
         onClick={triggerPlay}
+        {...ripple}
         aria-label={playLabel}
         className={cn(
           "relative overflow-hidden rounded-xl bg-surface transition-[transform,opacity] duration-[var(--dur-expressive)] ease-out",
@@ -194,7 +200,19 @@ export default function TrackCard({ track, onPlay, featured = false, meta }: Tra
             }
           )}
         >
-          <span className="grid h-10 w-10 place-items-center rounded-full bg-accent shadow-lg transition-transform duration-[var(--dur-standard)]">
+          <span
+            className={cn(
+              "grid h-10 w-10 place-items-center rounded-full bg-accent shadow-lg transition-transform duration-[var(--dur-standard)]",
+              // Neon glow (§ Phase 5): a STATIC accent halo that is simply
+              // always on for the current track, rather than something that
+              // animates — animating a filter would repaint the FAB every
+              // frame (§4). `drop-shadow` (not `box-shadow`) so the glow
+              // follows the circle's silhouette. Only the current track gets
+              // it, which makes "this is playing" readable at a glance from
+              // the play overlay alone.
+              isCurrent && "[filter:drop-shadow(0_0_10px_color-mix(in_srgb,var(--accent)_75%,transparent))]"
+            )}
+          >
             {isPlayingCurrent ? (
               <svg viewBox="0 0 24 24" className="h-5 w-5 fill-current">
                 <path d="M7 5h3v14H7zM14 5h3v14h-3z" />

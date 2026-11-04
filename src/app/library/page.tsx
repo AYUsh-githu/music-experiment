@@ -34,6 +34,7 @@ import TrackRow from "@/components/track/TrackRow";
 import TrackContextMenu from "@/components/track/TrackContextMenu";
 import { HistoryShelfSkeleton } from "@/components/ui/Skeleton";
 import EmptyState, { AlertIcon } from "@/components/ui/EmptyState";
+import LibraryBadges from "@/components/library/LibraryBadges";
 import Artwork from "@/components/track/Artwork";
 import { requestPlayQueue } from "@/lib/client/playerBridge";
 import { usePlayer, LIBRARY_UPDATED_EVENT } from "@/lib/client/PlayerContext";
@@ -915,6 +916,11 @@ export default function LibraryPage() {
       <p className="mt-1 text-sm text-muted">
         Your favorites, playlists and play history.
       </p>
+
+      {/* Milestone chips (§ Phase 5). Derived from the same IndexedDB data the
+          tabs below read, so they can never disagree with the lists on screen,
+          and they need no storage of their own. */}
+      <LibraryBadges />
 
       {/* Tab bar — active tab underline in accent-2, horizontal-scroll on tiny widths. */}
       <nav

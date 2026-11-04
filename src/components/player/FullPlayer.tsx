@@ -459,6 +459,21 @@ export default function FullPlayer() {
                       transformStyle: "preserve-3d",
                     }}
                   >
+                  <div
+                    // Breathing artwork (§ Phase 5): a slow 1.5% inhale/exhale.
+                    // WHY its own div and not a class on the motion.div above:
+                    // that node's `transform` is owned by framer for the tilt
+                    // (rotateX/rotateY/scale). CSS keyframes writing `transform`
+                    // on the same element would be overwritten by framer's
+                    // inline style every frame and the breathing would never
+                    // show. A child wrapper gets its own transform origin and
+                    // composes cleanly under the tilt. PAUSED when not playing
+                    // so a paused track is visually still, and the animation is
+                    // `animation-play-state`, not an unmount, so resuming does
+                    // not restart the cycle from zero.
+                    className="sonic-breathe rounded-xl"
+                    style={{ animationPlayState: playing ? "running" : "paused" }}
+                  >
                     <Artwork
                       track={currentTrack}
                       size="w-56 h-56 md:w-72 md:h-72 rounded-xl"
@@ -478,6 +493,7 @@ export default function FullPlayer() {
                         }}
                       />
                     )}
+                  </div>
                   </motion.div>
                 </div>
               </motion.div>

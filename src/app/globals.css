@@ -552,3 +552,179 @@ html[data-scroll-locked="true"] #main {
   }
 }
 
+/* ==========================================================================
+   PHASE 5 — INTERACTION MICRO-EFFECTS
+   Press ripples, swipe-to-delete, the progress-edge halo, the breathing
+   artwork, and the discovery dial. Every keyframe here animates transform or
+   opacity ONLY. Each effect ALSO has a JS-side gate (usePrefersReducedMotion)
+   because these are effects that only make sense as motion — collapsing them
+   to 0.01ms would paint a full-size circle / a displaced row for one frame,
+   which is worse than not showing them. The CSS guard below is the second
+   line of defence (e.g. for a mid-session preference change).
+   ========================================================================== */
+
+/* -------------------------------------------------------------------------- */
+/* Press ripple — see src/hooks/useRipple.ts. The span is injected on          */
+/* pointerdown, centred on the contact point, and removes itself on            */
+/* animationend. It grows from nothing to its measured radius while fading, so */
+/* it reads as a wash of light spreading from the finger, then disappears.     */
+/* -------------------------------------------------------------------------- */
+@keyframes sonic-ripple {
+  from {
+    transform: scale(0);
+    opacity: 0.28;
+  }
+  to {
+    transform: scale(1);
+    opacity: 0;
+  }
+}
+
+.sonic-ripple {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  /* WHY color-mix against the inherited color: the same class then reads as a
+     white wash on an accent FAB and as an accent wash on a dark row, with no
+     per-caller color prop. Callers that DO pass a color set backgroundColor
+     inline, which wins over this. */
+  background-color: color-mix(in srgb, currentColor 100%, transparent);
+  transform-origin: center;
+  animation: sonic-ripple var(--dur-page) var(--ease-out) forwards;
+  will-change: transform, opacity;
+  /* Above the artwork/scrim but below any absolutely-positioned control that
+     carries its own stacking (menus, badges). */
+  z-index: 1;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Breathing artwork — the now-playing cover very slowly inhales and exhales.  */
+/* 1.5% is deliberately tiny: the point is a living surface, not a zoom.       */
+/* Opacity is untouched so the cover's color never shifts.                     */
+/* -------------------------------------------------------------------------- */
+@keyframes sonic-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.015);
+  }
+}
+
+.sonic-breathe {
+  animation: sonic-breathe 7s ease-in-out infinite;
+  will-change: transform;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Progress-edge halo — the thumb's outer glow. Driven by a CSS var so the     */
+/* component can dial it with playback progress without re-declaring the       */
+/* keyframe. Transform/opacity only; the glow is a pre-blurred radial layer,   */
+/* never an animated box-shadow (§4).                                          */
+/* -------------------------------------------------------------------------- */
+.sonic-thumb-halo {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--halo-color, var(--accent)) 60%, transparent) 0%,
+    transparent 70%
+  );
+  transform: scale(calc(1.9 + (var(--halo-boost, 0) * 0.9)));
+  opacity: calc(0.28 + (var(--halo-boost, 0) * 0.42));
+  transition:
+    transform var(--dur-standard) var(--ease-out),
+    opacity var(--dur-standard) var(--ease-out);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Shake — a rejected action (seeking an unknown-duration track). Three        */
+/* decaying translateX passes totalling 320ms; nothing else moves.             */
+/* -------------------------------------------------------------------------- */
+@keyframes sonic-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  15% {
+    transform: translateX(-4px);
+  }
+  30% {
+    transform: translateX(4px);
+  }
+  45% {
+    transform: translateX(-3px);
+  }
+  60% {
+    transform: translateX(3px);
+  }
+  75% {
+    transform: translateX(-1.5px);
+  }
+}
+
+.sonic-shake {
+  animation: sonic-shake var(--dur-expressive) var(--ease-standard) 1;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Discovery dial — the conic sweep that spins while the wheel resolves which  */
+/* track to play. Purely a rotation; the wedge highlight is a static overlay.  */
+/* -------------------------------------------------------------------------- */
+@keyframes sonic-dial-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.sonic-dial-spin {
+  animation: sonic-dial-spin 0.9s cubic-bezier(0.15, 0.9, 0.2, 1) 1;
+  will-change: transform;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Wordmark easter egg — five quick taps on the logo detonate a short confetti */
+/* burst from the wordmark's centre. Fragments fly on transform alone.         */
+/* -------------------------------------------------------------------------- */
+@keyframes sonic-confetti {
+  from {
+    transform: translate3d(0, 0, 0) scale(1);
+    opacity: 1;
+  }
+  to {
+    transform: translate3d(var(--cx, 0px), var(--cy, -40px), 0) scale(0.3);
+    opacity: 0;
+  }
+}
+
+.sonic-confetti {
+  animation: sonic-confetti var(--dur-page) var(--ease-out) forwards;
+  will-change: transform, opacity;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Reduced-motion second line of defence. The JS gates above already prevent   */
+/* these elements from being created; this catches a preference flipped on     */
+/* mid-session, where the DOM already exists. Note that the ripple and         */
+/* confetti are removed by their own `animationend` listeners, which never     */
+/* fire if the animation is killed — hence `animation: none` here pairs with   */
+/* `display: none` so a stranded span cannot sit over the UI at full opacity.  */
+/* -------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  .sonic-breathe,
+  .sonic-dial-spin {
+    animation: none !important;
+  }
+  .sonic-ripple,
+  .sonic-confetti {
+    display: none !important;
+  }
+}
+
+

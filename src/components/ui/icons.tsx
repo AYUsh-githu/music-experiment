@@ -343,3 +343,29 @@ export function Check(props: IconProps) {
     </Svg>
   );
 }
+
+/* ---------------- Discovery & milestones ---------------- */
+
+/** Sparkle — a four-point star. Used for the discovery wheel and for the
+ *  "new" affordance. Drawn on the same 24px grid as the rest of the set. */
+export function Sparkle(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M12 3.5c.6 3.6 2.4 5.4 6 6-3.6.6-5.4 2.4-6 6-.6-3.6-2.4-5.4-6-6 3.6-.6 5.4-2.4 6-6Z" />
+      {/* The little satellite spark keeps it from reading as a plain diamond
+          at small sizes, where the main star's points collapse. */}
+      <path d="M18 16.5c.25 1.4.95 2.1 2.35 2.35-1.4.25-2.1.95-2.35 2.35-.25-1.4-.95-2.1-2.35-2.35 1.4-.25 2.1-.95 2.35-2.35Z" />
+    </Svg>
+  );
+}
+
+/** Trophy — a milestone/badge glyph. Cup body, handles, and a base plinth. */
+export function Trophy(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M7.5 4.5h9v4.2a4.5 4.5 0 0 1-9 0V4.5Z" />
+      <path d="M7.5 6H5.4a2.4 2.4 0 0 0 2.1 3.4M16.5 6h2.1a2.4 2.4 0 0 1-2.1 3.4" />
+      <path d="M12 13.2V16M8.8 19.5h6.4M10 16h4" />
+    </Svg>
+  );
+}

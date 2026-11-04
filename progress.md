@@ -898,3 +898,72 @@ line 285-288 already sets animation:none plus transform:scaleY(0.6). Checked bef
 - tsc --noEmit CLEAN · lint CLEAN (0 errors / 0 warnings) · build PASSES (13/13 static).
 - Live (port 3103): all 4 pages 200; search 12; proxy Range -> 206 Partial Content, bytes 0-1023/4159651,
   audio/webm, 1024 bytes; hydration mismatches 0; non-library errors 0.
+
+---
+
+## Phase 5 — Interaction Micro-Effects (frontend-only)
+
+Scope decision recorded up front: the 50-effect catalog is not all buildable.
+Every audio-reactive item (waveform, spectrogram, bass particles, LED grid,
+haptics-on-drop) needs a Web Audio analyser, which requires `crossOrigin` on the
+shared `<audio>` and CORS on every proxied 206. Verified both are absent:
+`PlayerContext.tsx` binds a bare `<audio>` and `src/app/api/proxy/route.ts` sets
+only Content-Type/Content-Range/Accept-Ranges/Content-Length/Cache-Control.
+`createMediaElementSource()` on such a stream outputs SILENCE — the worst
+failure mode, since visuals would look fine while audio died. Deferred rather
+than risked. The catalog's suggested stack (three.js, gsap, lottie, Tone.js) is
+also explicitly banned by frontend.md §4. VR/AR/NFT/EEG items are out of scope.
+
+### Built (all transform/opacity, all reduced-motion gated)
+
+New primitives:
+- `src/hooks/usePrefersReducedMotion.ts` — useSyncExternalStore over the media
+  query; SSR snapshot is always `false`, no set-state-in-effect.
+- `src/hooks/useRipple.ts` — press ripple. Appends one span on pointerdown,
+  self-removes on `animationend` (plus a 1s failsafe), skips creation entirely
+  under reduced motion. Returns a spreadable `onPointerDown`.
+
+New components:
+- `SwipeableRow.tsx` — queue swipe-to-delete. `drag="x"` with direction lock so
+  it coexists with the drawer panel's own `drag="y"`. Commits on distance
+  (>96px) OR velocity flick (>520px/s). Renders children bare under reduced motion.
+- `DiscoveryWheel.tsx` — conic dial picking a random track from history+trending.
+  Chooses the winner BEFORE animating; reduced motion skips the spin and plays
+  immediately. Pool is deduped by id. No new fetch, no backend contact.
+- `LibraryBadges.tsx` — 5 milestones derived live from getFavorites/getHistory/
+  getPlaylists. Nothing persisted, so a badge can never contradict the library.
+- `WordmarkEasterEgg.tsx` — 5 taps in 900ms on "Sonic" → confetti burst.
+  Not a button (no phantom tab stop); wrapper only, wordmark text unchanged.
+
+Edited:
+- `globals.css` — appended one Phase 5 block: `sonic-ripple`, `sonic-breathe`,
+  `sonic-thumb-halo`, `sonic-shake`, `sonic-confetti`, plus a reduced-motion
+  block that `display: none`s ripple/confetti (their `animationend` cleanup
+  never fires if the animation is killed, so they'd otherwise strand at full
+  opacity over the UI).
+- `TrackRow.tsx` / `TrackCard.tsx` — ripple host (`relative overflow-hidden`),
+  TrackCard play FAB gets a static accent `drop-shadow` glow on the current track.
+- `QueueDrawer.tsx` — rows wrapped in `SwipeableRow`.
+- `ProgressBar.tsx` — thumb halo ramps over the last 8% via `--halo-boost`;
+  rejected press (unknown duration) shakes instead of doing nothing.
+- `FullPlayer.tsx` — breathing artwork on a NEW child div. Critical: NOT on the
+  tilt motion.div, whose `transform` framer owns — a CSS keyframe there would be
+  overwritten every frame and never show.
+- `HomeView.tsx` — DiscoveryWheel below the hero.
+- `library/page.tsx` — LibraryBadges under the page intro.
+- `Shell.tsx` — wordmark wrapped in WordmarkEasterEgg (one line).
+- `icons.tsx` — appended `Sparkle` and `Trophy` on the shared 24px grid.
+
+### Gates
+`npx tsc --noEmit` exit 0 · `npm run lint` 0 errors/0 warnings ·
+`npm run build` 5 static routes OK (only the pre-existing spawn.ts turbopack
+trace warning) · frozen diff `src/app/api src/lib/server scripts bin` **empty** ·
+frozen diff (PlayerContext, playerBridge, db, motion, toast, settings,
+lyricsParser, next.config, tsconfig, package.json) **empty**.
+
+Live regression on :3117 — /, /search, /library, /settings all 200;
+/api/trending ok, 14 results; /api/search ok, 12 results; /api/stream resolves;
+**/api/proxy with `Range: bytes=0-1023` → HTTP 206 Partial Content,
+`bytes 0-1023/3062721`, `audio/webm`, 1024 bytes**; hydration mismatches 0;
+non-YOUTUBEJS errors 0. New markup confirmed present in SSR output
+("Milestones ·", "Surprise me", "Spin for something").
