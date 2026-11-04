@@ -1,0 +1,607 @@
+<title>SONIC Frontend Upgrade — Final Report</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+  /* Design plan
+     Palette: ink-blue neutrals biased toward the accent, one amber signal hue,
+     one green "shipped" and one clay "open" — semantic, separate from accent.
+     Type: Fraunces for display (a music app earns a little warmth), Inter for
+     body, JetBrains Mono for file paths and counts.
+     Layout: single measured column with a status ledger; audit table scrolls
+     on its own axis at phone width. */
+  :root {
+    --bg: #f6f5f2;
+    --surface: #ffffff;
+    --surface-2: #ecebe6;
+    --fg: #16181d;
+    --fg-soft: #4a4f5a;
+    --muted: #757b87;
+    --border: #d9d7d0;
+    --accent: #b4531f;
+    --shipped: #1f6b4a;
+    --shipped-bg: #e2f0e8;
+    --open: #8a5a12;
+    --open-bg: #f7ecd7;
+    --code-bg: #efeee9;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #12141a;
+      --surface: #191c24;
+      --surface-2: #21252f;
+      --fg: #e8e6e1;
+      --fg-soft: #b6b3ac;
+      --muted: #8b8892;
+      --border: #2c313c;
+      --accent: #e8853f;
+      --shipped: #6fce9e;
+      --shipped-bg: #16302a;
+      --open: #e0b45c;
+      --open-bg: #33280f;
+      --code-bg: #20242e;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #12141a;
+    --surface: #191c24;
+    --surface-2: #21252f;
+    --fg: #e8e6e1;
+    --fg-soft: #b6b3ac;
+    --muted: #8b8892;
+    --border: #2c313c;
+    --accent: #e8853f;
+    --shipped: #6fce9e;
+    --shipped-bg: #16302a;
+    --open: #e0b45c;
+    --open-bg: #33280f;
+    --code-bg: #20242e;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: Inter, ui-sans-serif, system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 0;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 760px;
+    margin: 0 auto;
+    padding-block: 48px 72px;
+  }
+
+  /* ---------- masthead ---------- */
+  .eyebrow {
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 600;
+    margin: 0 0 14px;
+  }
+  h1 {
+    font-family: Fraunces, Georgia, "Times New Roman", serif;
+    font-weight: 600;
+    font-size: clamp(2rem, 6vw, 3rem);
+    line-height: 1.08;
+    letter-spacing: -0.02em;
+    margin: 0 0 16px;
+    text-wrap: balance;
+  }
+  .standfirst {
+    font-size: 1.0625rem;
+    color: var(--fg-soft);
+    margin: 0;
+    max-width: 60ch;
+  }
+
+  /* ---------- verdict strip ---------- */
+  .verdict {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    margin: 32px 0 40px;
+  }
+  .verdict div {
+    flex: 1 1 130px;
+    min-width: 0;
+    background: var(--surface);
+    padding: 16px 18px;
+  }
+  .verdict dt {
+    font-size: 10.5px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 600;
+    margin: 0 0 6px;
+  }
+  .verdict dd {
+    margin: 0;
+    font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 1.375rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.1;
+  }
+  .verdict dd small {
+    display: block;
+    font-family: Inter, system-ui, sans-serif;
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--muted);
+    margin-top: 4px;
+    letter-spacing: 0;
+  }
+  .ok { color: var(--shipped); }
+
+  /* ---------- sections ---------- */
+  section { margin-bottom: 44px; }
+  h2 {
+    font-family: Fraunces, Georgia, serif;
+    font-size: 1.375rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    margin: 0 0 6px;
+    text-wrap: balance;
+  }
+  .h2note {
+    font-size: 0.875rem;
+    color: var(--muted);
+    margin: 0 0 18px;
+  }
+  p { margin: 0 0 14px; color: var(--fg-soft); }
+  p strong { color: var(--fg); font-weight: 600; }
+
+  code {
+    font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.8125em;
+    background: var(--code-bg);
+    padding: 0.15em 0.4em;
+    border-radius: 4px;
+    color: var(--fg);
+    overflow-wrap: anywhere;
+  }
+
+  /* ---------- finding ledger ---------- */
+  .ledger { display: flex; flex-direction: column; gap: 10px; }
+  .item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    padding: 16px 18px;
+  }
+  .item-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 8px 10px;
+    margin-bottom: 7px;
+  }
+  .item-head h3 {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    margin: 0;
+    color: var(--fg);
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .tag {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 999px;
+    white-space: nowrap;
+    flex: 0 0 auto;
+  }
+  .tag.fixed { background: var(--shipped-bg); color: var(--shipped); }
+  .tag.open { background: var(--open-bg); color: var(--open); }
+  .item p { margin: 0; font-size: 0.875rem; line-height: 1.55; }
+  .item p + p { margin-top: 7px; }
+  .why { color: var(--muted); font-size: 0.8125rem; }
+
+  /* ---------- audit table ---------- */
+  .scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 0 4px; }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    min-width: 460px;
+    font-size: 0.8125rem;
+  }
+  th {
+    text-align: left;
+    font-size: 10.5px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 600;
+    padding: 0 12px 8px 0;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  td {
+    padding: 9px 12px 9px 0;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+    color: var(--fg-soft);
+  }
+  td:last-child, th:last-child { padding-right: 0; }
+  td.num {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+    color: var(--fg);
+    white-space: nowrap;
+  }
+  tr:last-child td { border-bottom: none; }
+
+  /* ---------- callout ---------- */
+  .callout {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 0 9px 9px 0;
+    padding: 16px 18px;
+    margin: 18px 0;
+  }
+  .callout p:last-child { margin-bottom: 0; }
+
+  footer {
+    border-top: 1px solid var(--border);
+    padding-top: 20px;
+    font-size: 0.8125rem;
+    color: var(--muted);
+  }
+  footer p { color: var(--muted); font-size: 0.8125rem; }
+
+  @media (max-width: 520px) {
+    .wrap { padding-block: 32px 56px; }
+    .verdict div { flex-basis: calc(50% - 1px); padding: 13px 14px; }
+    .verdict dd { font-size: 1.2rem; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+
+<div class="wrap">
+
+  <p class="eyebrow">SONIC · Phase C · 28 October 2026</p>
+  <h1>Frontend upgrade, verified and closed</h1>
+  <p class="standfirst">
+    The integration and adversarial verification workflow has completed. Every
+    gate is green, eleven defects found by the verifiers are fixed, and the four
+    items deliberately left open are listed with the reason each one waits.
+  </p>
+
+  <dl class="verdict">
+    <div><dt>Typecheck</dt><dd class="ok">0<small>errors</small></dd></div>
+    <div><dt>Lint</dt><dd class="ok">0<small>warnings</small></dd></div>
+    <div><dt>Build</dt><dd class="ok">11<small>routes compiled</small></dd></div>
+    <div><dt>Freeze diff</dt><dd class="ok">0<small>frozen files touched</small></dd></div>
+  </dl>
+
+  <section>
+    <h2>What the workflow found</h2>
+    <p class="h2note">Six agents: two gap-fill, four verifiers.</p>
+    <p>
+      The aggregate result reported 15 violations and 12 deviations, but those
+      numbers were heavily duplicated — animated box-shadow appeared three
+      times, the <code>cn()</code> className rule five, the reduced-motion block
+      four. De-duplicating gave <strong>11 distinct defects</strong>, each
+      re-checked against the source before anything changed.
+    </p>
+    <p>
+      The per-agent records also held detail the summary hid: each verifier
+      returned its own findings and risks lists. Re-reading those against the
+      tree turned up <strong>four more items still open</strong>, including the
+      one bug in this batch that actually broke a daily interaction.
+    </p>
+  </section>
+
+  <section>
+    <h2>Fixed this round</h2>
+    <p class="h2note">The four items the aggregate report never surfaced.</p>
+    <div class="ledger">
+
+      <div class="item">
+        <div class="item-head">
+          <h3>Space stopped toggling playback when any button had focus</h3>
+          <span class="tag fixed">Fixed</span>
+        </div>
+        <p>
+          The keyboard guard stood down for Space whenever focus was anywhere
+          inside a <code>&lt;button&gt;</code>. With focus on a queue row's move
+          arrow or a nav link, the app's primary shortcut silently did nothing.
+          K still worked, so casual testing missed it.
+        </p>
+        <p class="why">
+          The guard now yields only to buttons carrying a
+          <code>data-sonic-playpause</code> marker, applied to the three real
+          transport controls. Verified with eight behavioural cases, including
+          children nested inside the transport button.
+        </p>
+      </div>
+
+      <div class="item">
+        <div class="item-head">
+          <h3>Playing ring had no scale on the cover</h3>
+          <span class="tag fixed">Fixed</span>
+        </div>
+        <p>
+          F7 asks for a ring with a subtle scale on the cover. The ring was
+          present but static, and its transition pointed at a no-op.
+        </p>
+        <p class="why">
+          An outward scale would have been clipped by the tile's
+          <code>overflow-hidden</code>, so the ring is inset and scaled to
+          <code>0.97</code> instead — the only place the halo can be seen.
+        </p>
+      </div>
+
+      <div class="item">
+        <div class="item-head">
+          <h3>Skeleton measurement was documented wrong</h3>
+          <span class="tag fixed">Fixed</span>
+        </div>
+        <p>
+          The comment claimed a 56px row box. The real arithmetic is
+          <code>min-h-12</code> (48px) plus <code>py-1.5</code> twice (12px) =
+          <strong>60px</strong>. The behaviour was always correct — both
+          skeleton and row resolve to 60px, so the delta is genuinely zero — but
+          the number would mislead the next person checking the ≤2px target.
+        </p>
+      </div>
+
+      <div class="item">
+        <div class="item-head">
+          <h3>No-JS first paint: investigated, then deliberately left alone</h3>
+          <span class="tag open">Not changed</span>
+        </div>
+        <p>
+          Adding <code>.touch-visible</code> to the play overlay looks like the
+          obvious fix, but that utility emits <code>opacity: 0</code> under
+          <code>(hover: hover)</code> and would fight the opacity class the card
+          emits for touch. Tailwind's output order, not intent, would decide the
+          winner.
+        </p>
+        <p class="why">
+          Applied, recognised the collision, reverted, documented. The overlay
+          already opens visible, and a JS-disabled client cannot play the card at
+          all — the affordance is moot rather than lost.
+        </p>
+      </div>
+
+    </div>
+  </section>
+
+  <section>
+    <h2>Fixed in the first pass</h2>
+    <p class="h2note">Seven defects from the aggregate report.</p>
+    <div class="ledger">
+
+      <div class="item">
+        <div class="item-head">
+          <h3>Animated box-shadow on the track card</h3>
+          <span class="tag fixed">Fixed</span>
+        </div>
+        <p>
+          Interpolated every frame, which the spec forbids outright. The file's
+          own comment claimed it never animated box-shadow — true of the ring,
+          false of the card root.
+        </p>
+        <p class="why">
+          Replaced with a pre-rendered layer whose opacity animates. It sits on
+          the non-clipping wrapper at the tile's exact size, because
+          <code>inset-0</code> would have thrown a shadow under the title text.
+        </p>
+      </div>
+
+      <div class="item">
+        <div class="item-head">
+          <h3>An undefined CSS variable disabled a transition</h3>
+          <span class="tag fixed">Fixed</span>
+        </div>
+        <p>
+          <code>--dur-quick</code> does not exist — only micro, standard,
+          expressive and page are declared. The transition silently never ran.
+          Invisible to typecheck and lint.
+        </p>
+      </div>
+
+      <div class="item">
+        <div class="item-head">
+          <h3>Reduced motion squashed the shimmer and marquee</h3>
+          <span class="tag fixed">Fixed</span>
+        </div>
+        <p>
+          One grouped rule applied <code>scaleY(0.6)</code> to the equalizer
+          bars <em>and</em> the skeleton gloss and title marquee. The block's own
+          comment said it was bars-only.
+        </p>
+      </div>
+
+      <div class="item">
+        <div class="item-head">
+          <h3>A button role wrapped three real buttons</h3>
+          <span class="tag fixed">Fixed</span>
+        </div>
+        <p>
+          The queue row was <code>role="button"</code> yet contained the
+          play/pause toggle, move arrows and the overflow menu. Invalid ARIA —
+          screen readers flatten interactive descendants.
+        </p>
+        <p class="why">
+          The row is now a list item holding siblings: a decorative index, the
+          toggle, and one labelled play button.
+        </p>
+      </div>
+
+      <div class="item">
+        <div class="item-head">
+          <h3>All artwork loaded lazily</h3>
+          <span class="tag fixed">Fixed</span>
+        </div>
+        <p>
+          Including the mini-player thumbnail and the full-player hero — on
+          screen at the moment a track changes, deferring the very art the
+          viewer is looking at.
+        </p>
+        <p class="why">
+          An opt-in <code>eager</code> prop keeps lazy loading for the long card
+          shelves, where it genuinely saves bytes.
+        </p>
+      </div>
+
+      <div class="item">
+        <div class="item-head">
+          <h3>Dead code and off-budget durations</h3>
+          <span class="tag fixed">Fixed</span>
+        </div>
+        <p>
+          An unused equalizer component and an orphaned keyframe removed. A
+          <code>0.18s</code> duration — not one of the four allowed values —
+          replaced, and several hardcoded timings routed through the motion
+          tokens.
+        </p>
+      </div>
+
+    </div>
+  </section>
+
+  <section>
+    <h2>Left open, on purpose</h2>
+    <p class="h2note">Each of these is a decision with a reason, not an oversight.</p>
+    <div class="ledger">
+
+      <div class="item">
+        <div class="item-head">
+          <h3>The player overlay re-renders four times a second</h3>
+          <span class="tag open">Open</span>
+        </div>
+        <p>
+          <code>progress</code> lives in the broadcast player context, so the
+          whole full-player overlay re-renders on every time-update. The spec
+          states twice that only leaf components may subscribe to current time.
+        </p>
+        <p class="why">
+          A real violation, but the fix means restructuring the context — which
+          is shared-care and additive-only. That needs the proposal route rather
+          than an improvised change. Benign while the overlay is closed.
+        </p>
+      </div>
+
+      <div class="item">
+        <div class="item-head">
+          <h3>About thirty className sites skip the helper</h3>
+          <span class="tag open">Open</span>
+        </div>
+        <p>
+          The styling rule asks for <code>cn()</code> on every conditional
+          className. It is used everywhere the upgrade touched code; roughly
+          thirty untouched call sites still assemble template strings.
+        </p>
+        <p class="why">
+          A real rule deviation. Converting untouched call sites is large diff
+          noise for no runtime effect — recorded rather than done blind.
+        </p>
+      </div>
+
+      <div class="item">
+        <div class="item-head">
+          <h3>Toast timer edge cases</h3>
+          <span class="tag open">Open</span>
+        </div>
+        <p>
+          Hovering then tabbing away can leave a focused toast's timer running,
+          and a brief hover at the very start can extend a toast by up to half
+          its life. Low impact; no harness exists to test toast timing.
+        </p>
+      </div>
+
+      <div class="item">
+        <div class="item-head">
+          <h3>Runtime behaviour no test can reach</h3>
+          <span class="tag open">Unverified</span>
+        </div>
+        <p>
+          Long-press cancellation, drawer drag-to-dismiss competing with list
+          scroll, and screen-reader behaviour on the restructured queue row.
+          Playwright is absent from the repository, so these need a manual pass.
+        </p>
+      </div>
+
+    </div>
+  </section>
+
+  <section>
+    <h2>Constraint audit</h2>
+    <p class="h2note">Re-run against the integrated tree after every change.</p>
+    <div class="scroll">
+      <table>
+        <thead>
+          <tr><th>Rule</th><th>Result</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Exactly one <code>&lt;audio&gt;</code> element</td><td class="num">1</td><td>Pass</td></tr>
+          <tr><td>No <code>dangerouslySetInnerHTML</code> in code</td><td class="num">0</td><td>Pass</td></tr>
+          <tr><td>Animated box-shadow removed</td><td class="num">0</td><td>Pass</td></tr>
+          <tr><td>Durations outside the token set</td><td class="num">0</td><td>Pass</td></tr>
+          <tr><td>Executable native dialogs</td><td class="num">0</td><td>Pass</td></tr>
+          <tr><td>Frozen backend paths changed</td><td class="num">0</td><td>Pass</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>One note on method</h2>
+    <div class="callout">
+      <p>
+        Two findings in this batch were <strong>not</strong> code defects by the
+        time they reached me: one agent had silenced a dead-code warning with an
+        eslint suppression, which made an earlier lint run look clean while
+        masking the problem, and one "no cache entry to evict" log line
+        contradicted a working fix.
+      </p>
+      <p>
+        Both were chased down rather than accepted. The suppression was replaced
+        by deleting the dead code; the log line turned out to come from a later
+        request to an already-evicted key — correct behaviour, confirmed by
+        reading the timestamps in order.
+      </p>
+    </div>
+  </section>
+
+  <footer>
+    <p>
+      Also finished in this session, outside the workflow: a playback bug where
+      songs failed to play on the second attempt. YouTube invalidates extracted
+      stream URLs well before their advertised expiry, and the cache held them
+      for four hours regardless. Fixed with a shorter TTL plus eviction keyed on
+      the origin's own rejection — diagnosed by fetching a stale URL directly
+      from the origin, which showed the proxy itself was innocent.
+    </p>
+    <p>
+      Full detail for both rounds is in <code>progress.md</code>. Gates on the
+      current tree: typecheck clean, lint clean at zero warnings, production
+      build exit 0 across eleven routes.
+    </p>
+  </footer>
+
+</div>

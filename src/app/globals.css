@@ -1,26 +1,554 @@
 @import "tailwindcss";
 
+/*
+ * Dark theme tokens for Sonic (plan §5.1). Defined once as CSS variables and
+ * mapped into Tailwind's theme so every utility stays consistent.
+ *
+ * WHY tokens: a single source of truth for color lets the whole UI re-theme
+ * from one place instead of scattering hex values across components.
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #0b0b10;
+  --surface: #16161d;
+  --surface-2: #1f1f2a;
+  --border: #2a2a38;
+  --accent: #7c5cff;
+  --accent-2: #a78bfa;
+  --text: #f2f2f7;
+  --muted: #9a9ab0;
+  --danger: #f87171;
+  --radius: 0.75rem;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-border: var(--border);
+  --color-accent: var(--accent);
+  --color-accent-2: var(--accent-2);
+  --color-text: var(--text);
+  --color-muted: var(--muted);
+  --color-danger: var(--danger);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html,
+body {
+  height: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
 }
+
+/* Thin, unobtrusive scrollbars for the dark theme. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 9999px;
+}
+
+/*
+ * Accessible keyboard focus everywhere (plan §5.1 / Phase 5 a11y audit): a
+ * high-contrast ring on any interactive element focused via keyboard. Tailwind
+ * utility focus styles exist on a few controls, but without a global rule the
+ * rest fall back to an inconsistent (or, when outline-none is used, missing)
+ * indicator — this guarantees a visible focus target app-wide.
+ */
+:focus-visible {
+  outline: 2px solid var(--accent-2);
+  outline-offset: 2px;
+}
+
+/* ==========================================================================
+   WAVE 2 — SONIC MOTION LANGUAGE
+   Global motion tokens + keyframes. Everything here animates ONLY
+   `transform` and `opacity` (never width/height/top/left) to avoid layout
+   thrash, and every animation is disabled under prefers-reduced-motion.
+   ========================================================================== */
+
+/* Motion timing tokens (spec: micro 120ms, standard 200ms, expressive 320ms,
+   page 400ms). Exposed as CSS vars and mapped into Tailwind's theme so the
+   duration tokens are reusable as `duration-[var(--dur-*)]` or inline. */
+:root {
+  --dur-micro: 120ms;
+  --dur-standard: 200ms;
+  --dur-expressive: 320ms;
+  --dur-page: 400ms;
+
+  /* Standard eased motion curve for the whole app; entrances are ease-out,
+     exits ease-in. cubic-bezier(0.2,0,0,1) is the Material-sharp feel Sonic
+     uses for its dark, snappy UI. */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+}
+
+@theme inline {
+  --duration-micro: var(--dur-micro);
+  --duration-standard: var(--dur-standard);
+  --duration-expressive: var(--dur-expressive);
+  --duration-page: var(--dur-page);
+  --ease-standard: var(--ease-standard);
+}
+
+/* ---------------------------------------------------------------- */
+/* Shimmer sweep (skeleton placeholders)                             */
+/* ---------------------------------------------------------------- */
+@keyframes sonic-shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(250%);
+  }
+}
+.sonic-shimmer {
+  animation: sonic-shimmer 1.6s ease-in-out infinite;
+}
+
+/* ---------------------------------------------------------------- */
+/* Sheen sweep (cards / interactive surfaces) — a diagonal gloss     */
+/* that glides across the surface once on hover/focus.               */
+/* ---------------------------------------------------------------- */
+@keyframes sonic-sheen {
+  0% {
+    transform: translateX(-120%) skewX(-18deg);
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(280%) skewX(-18deg);
+    opacity: 0;
+  }
+}
+
+/* ---------------------------------------------------------------- */
+/* Marquee — horizontal scroll for overflowing titles                */
+/* Pauses on hover/focus via animation-play-state (class toggling is
+   done in the component; the pause utilities come from Tailwind's
+   arbitrary variant in Marquee.tsx). Starts only when the CSS class is
+   present, so short titles never animate.                                */
+/* ---------------------------------------------------------------- */
+@keyframes sonic-marquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+.sonic-marquee {
+  animation-name: sonic-marquee;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+/* ---------------------------------------------------------------- */
+/* Ambient now-playing backdrop breathing gradient                   */
+/* ---------------------------------------------------------------- */
+@keyframes sonic-ambient-shift {
+  0%, 100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(-2%, 2%, 0);
+  }
+}
+.sonic-ambient-shift {
+  animation: sonic-ambient-shift 18s ease-in-out infinite;
+}
+
+/* ---------------------------------------------------------------- */
+/* Equalizer bars (WS0) — active-track indicator                     */
+/* ---------------------------------------------------------------- */
+@keyframes eq-bounce {
+  0%, 100% {
+    transform: scaleY(0.25);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+.eq-anim {
+  animation: eq-bounce 1.1s ease-in-out infinite;
+  /* Each bar gets its own phase stagger via inline animation-delay. */
+  transform-origin: bottom;
+}
+/* Static ~60% bars — the paused / "current but not playing" state. */
+.eq-paused {
+  transform: scaleY(0.6);
+  transform-origin: bottom;
+}
+
+/* ---------------------------------------------------------------- */
+/* Reusable utility classes                                          */
+/* ---------------------------------------------------------------- */
+
+/* Progress hairline that drains across a toast over its lifetime.
+   Used by Toaster for the auto-dismiss countdown. */
+.sonic-toast-progress {
+  transform-origin: left;
+  animation: sonic-toast-progress linear forwards;
+}
+@keyframes sonic-toast-progress {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
+/* F14 sub-item: halt the countdown while the reader is interacting with the
+   toast, so a message cannot expire out from under a pointer/focus. The toast
+   card carries `.sonic-toast-group`; hovering it — or moving keyboard focus
+   into its close button — freezes the hairline (and the store timer that owns
+   the actual dismissal is paused by the same state in Toaster.tsx). */
+.sonic-toast-group:hover .sonic-toast-progress,
+.sonic-toast-group:focus-within .sonic-toast-progress {
+  animation-play-state: paused;
+}
+
+/* Card sheen: run the gloss sweep once when a `.sonic-sheen-on-hover` parent
+   is hovered or receives keyboard focus. The class is applied to a child
+   overlay; the parent's `group-hover`-style selector lives in the component. */
+.sonic-sheen-overlay {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  border-radius: inherit;
+}
+.group\/sheen:hover .sonic-sheen-overlay,
+.group\/sheen:focus-within .sonic-sheen-overlay {
+  animation: sonic-sheen 0.7s cubic-bezier(0.2, 0, 0, 1) 1;
+}
+
+/* Touch capability (WS0 / finding F3): an affordance that is intended to be
+   ghosted until hover should instead stay visible whenever the device cannot
+   truly hover (any touch/pen pointer). Add `.touch-visible` to an element that
+   currently relies on `group-hover:opacity-100` so touch users never lose it. */
+@media (hover: hover) and (pointer: fine) {
+  .touch-visible {
+    opacity: 0;
+  }
+}
+.touch-visible.group-hover\:opacity-100:hover {
+  opacity: 1;
+}
+/* When hover is unavailable, a `.touch-visible` element is always shown. */
+@media (hover: none), (pointer: coarse) {
+  .touch-visible {
+    opacity: 1 !important;
+  }
+}
+
+/* Reduced-motion guard: the single global OFF switch. When the user
+   prefers reduced motion, kill every transform/opacity keyframe animation
+   and every marquee. framer-motion additionally honors this via its
+   MotionConfig reducedMotion="user", so this CSS guard only needs to cover
+   the CSS-keyframe animations. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  /* Kill the looping keyframe animations. Kept as two rules on purpose: the
+     equalizer bars need a static squashed pose to still read as "bars", but the
+     marquee text and the skeleton gloss must NOT be scaled — grouping them all
+     under one `transform: scaleY(0.6)` squashed the shimmer and the title text
+     to 60% height for reduced-motion users. */
+  .sonic-marquee,
+  .sonic-sheen,
+  .sonic-shimmer {
+    animation: none !important;
+  }
+  .eq-anim {
+    animation: none !important;
+    transform: scaleY(0.6);
+  }
+  .sonic-ambient-shift {
+    animation: none !important;
+  }
+}
+
+/* -------------------------------------------------------------------------
+   Overlay scroll lock (WS3 / F12).
+   The app's real scroll container is Shell's `#main` (overflow-y-auto), NOT
+   window. Player overlays (queue drawer, full now-playing) set
+   `data-scroll-locked` on <html> while open; this neutralizes the shell
+   scroller so the route beneath cannot scroll behind the overlay. `#main`'s
+   own inner content keeps its scroll position, so closing the overlay restores
+   the exact place the user left. Overlay-internal scrollers (e.g. FullPlayer's
+   own overflow-y-auto root) are unaffected.
+   ------------------------------------------------------------------------- */
+html[data-scroll-locked="true"] #main {
+  overflow-y: hidden;
+}
+
+/* -------------------------------------------------------------------------
+   PHASE 1 — DESIGN SYSTEM POLISH
+   Appended by the CSS+Mobile agent. Rules here are NEW only; nothing above
+   was modified. No keyframe animations are introduced in this block, so under
+   the existing `prefers-reduced-motion: reduce` guard these utilities remain
+   fully static (colors/shadows/gradients do not animate) — nothing needs a
+   reduced-motion override of its own.
+   ------------------------------------------------------------------------- */
+
+/* Tell mobile browsers (especially Android/WebView) the app is intentionally
+   dark; prevents form controls and scrollbars flashing default light chrome. */
+:root {
+  color-scheme: dark;
+}
+
+/* Selection highlight that picks up the accent token instead of the UA's
+   hard-coded blue. Uses color-mix for alpha without a separate variable. */
+::selection {
+  background: color-mix(in srgb, var(--accent) 40%, transparent);
+  color: var(--text);
+}
+
+/* Gradient text: accent -> accent-2, clipped to glyph alpha.
+   NOTE(reduced motion, no-JS safe): purely paint-based, no animation. */
+.text-gradient-accent {
+  background-image: linear-gradient(
+    100deg,
+    var(--accent),
+    var(--accent-2)
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  /* Fallback color keeps the text readable in engines without bg-clip:text
+     (the gradient paints the whole box, but text stays legible via color). */
+  -webkit-text-fill-color: transparent;
+}
+
+/* Gradient hairline: 1px rounded gradient border via the padding-box/border-box
+   double-background technique — a real `border` cannot take a gradient and
+   border-image cannot be rounded. Two stacked backgrounds: one clipped to the
+   padding box (the fill), one to the border box, showing through the 1px gap. */
+.gradient-hairline {
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--bg-elev, var(--bg)), var(--bg-elev, var(--bg)))
+      padding-box,
+    linear-gradient(135deg, var(--accent), var(--accent-2)) border-box;
+}
+
+/* Layered card shadow for hover phases (particle-agent consumers): a tight
+   ambient contact shadow plus a wide soft accent-tinted lift. Pair with a
+   transform: translateY on hover under the existing can-hover/reduced-motion
+   patterns — this utility itself does not animate anything. */
+.sonic-card-shadow {
+  box-shadow:
+    0 1px 2px rgb(0 0 0 / 0.4),
+    0 2px 4px rgb(0 0 0 / 0.25),
+    0 8px 24px -8px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+/* ==========================================================================
+   PHASE 2 — ARTWORK-DRIVEN THEMING & NEXT-GEN EFFECTS
+   Appended by the Phase-2 foundation. All keyframes animate transform/opacity
+   ONLY, and are killed by the existing prefers-reduced-motion guard above
+   (duration collapse → static end state).
+   ========================================================================== */
+
+/* -------------------------------------------------------------------------- */
+/* Ken-Burns — the hero gallery artwork drift. A 20s alternating scale drift   */
+/* (1.0 → 1.06) on a dedicated overlay <img>; transform-only, designed to be   */
+/* disabled on hover-capable interaction and killed by reduced-motion.         */
+/* -------------------------------------------------------------------------- */
+@keyframes sonic-kenburns {
+  0% {
+    transform: scale(1) translate3d(0, 0, 0);
+  }
+  50% {
+    transform: scale(1.06) translate3d(1.5%, -1.5%, 0);
+  }
+  100% {
+    transform: scale(1) translate3d(0, 0, 0);
+  }
+}
+
+.sonic-kenburns {
+  animation: sonic-kenburns 20s ease-in-out infinite;
+  will-change: transform;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Aurora — one static pre-blurred radial gradient layer whose transform       */
+/* drifts very slowly behind the hero / now-playing surfaces. Static blur (no */
+/* filter animation), transform/opacity only.                                 */
+/* -------------------------------------------------------------------------- */
+@keyframes sonic-aurora {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  33% {
+    transform: translate3d(3%, -2%, 0) scale(1.08);
+  }
+  66% {
+    transform: translate3d(-2%, 3%, 0) scale(1.04);
+  }
+}
+
+.sonic-aurora {
+  animation: sonic-aurora 22s ease-in-out infinite;
+  will-change: transform;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Now-playing ring pulse — a 2px accent→artwork-color ring breathing at low   */
+/* opacity around the FullPlayer artwork (frontend.md §3.2). Opacity-only on   */
+/* a static ring element.                                                     */
+/* -------------------------------------------------------------------------- */
+@keyframes sonic-ring-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 0.15;
+  }
+}
+
+.sonic-ring-pulse {
+  animation: sonic-ring-pulse 3.2s ease-in-out infinite;
+  will-change: opacity;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Track-change title slide-up swap (frontend.md §3.1) — the play glyph /      */
+/* index cross-fade already exists via eq bars; this powers the FullPlayer    */
+/* title/artist "slide-up-on-change" micro-animation. Flex column + masked    */
+/* overflow; pairs with a framer `key`-based AnimatePresence in the component */
+/* (component-side). This class only provides the mask.                        */
+/* -------------------------------------------------------------------------- */
+.sonic-title-mask {
+  overflow: hidden;
+  display: block;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Artwork-color-tinted drop shadow for the hero artwork (§3.2): the shadow    */
+/* color comes from the extraction, injected as --aw by the consumer. A static */
+/* box-shadow — never animated directly (§4); it only exists on static art.    */
+/* -------------------------------------------------------------------------- */
+.sonic-art-shadow {
+  box-shadow:
+    0 8px 24px -4px color-mix(in srgb, var(--aw, var(--accent)) 40%, transparent),
+    0 2px 8px rgb(0 0 0 / 0.5);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Tilt base — 3D tilt on the FullPlayer artwork (§3.2). The component applies */
+/* rotateY/rotateX via framer while this provides perspective on the parent.   */
+/* -------------------------------------------------------------------------- */
+.sonic-tilt-scene {
+  perspective: 900px;
+}
+
+/* -------------------------------------------------------------------------- */
+/* FAB pop — the celebratory scale-bounce on playlist-created / first          */
+/* favorite (§3.4). Applied to a button element, 320ms, once per trigger.      */
+/* -------------------------------------------------------------------------- */
+@keyframes sonic-fab-pop {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.18);
+  }
+  70% {
+    transform: scale(0.94);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+.sonic-fab-pop {
+  animation: sonic-fab-pop 0.32s cubic-bezier(0.2, 0, 0, 1) 1;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Edge-fade mask for horizontal shelves (§1.5 TrackCardRow) — already in      */
+/* place from Phase 1; re-declared here so the hero gallery can reuse it.      */
+/* -------------------------------------------------------------------------- */
+.sonic-edge-fade {
+  -webkit-mask-image: linear-gradient(to right, black 92%, transparent);
+  mask-image: linear-gradient(to right, black 92%, transparent);
+}
+
+/* ==========================================================================
+   PHASE 3.3 — VIEW TRANSITIONS (route morphs, feature-guarded)
+   Appended by the pages/navigation agent. Styles the browser's
+   document.startViewTransition crossfade for App Router navigations on
+   supporting browsers (Chrome 111+/Safari 18+/Firefox 141+); unsupported
+   browsers never enter @supports, so nothing here can affect them and the
+   template.tsx framer fade remains the transition. Transform/opacity only
+   (200ms fade + 8px rise on the incoming snapshot), matching DUR.quick +
+   the 8px template rise so both paths read identically.
+   ========================================================================== */
+@supports (view-transition-name: root) {
+  ::view-transition-old(root) {
+    animation: sonic-vt-fade-out var(--dur-standard, 200ms) var(--ease-standard) both;
+  }
+  ::view-transition-new(root) {
+    animation: sonic-vt-fade-in var(--dur-standard, 200ms) var(--ease-standard) both;
+  }
+  /* Content moves — the page chrome (player surfaces are fixed-position but
+     snapshotted too) re-anchors instantly instead of sliding with the page. */
+  ::view-transition {
+    pointer-events: none;
+  }
+}
+
+/* The pair of keyframes: old snapshot fades out in place; new snapshot fades
+   in while rising the template's signature 8px. Compositor-only properties. */
+@keyframes sonic-vt-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes sonic-vt-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Reduced-motion kill for the VT pseudo-elements (inline, per the §3.3 grant;
+   complements the global reduced-motion guard above, which does not target
+   ::view-transition pseudos). The VT still runs but swaps instantly. */
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none !important;
+  }
+}
+
